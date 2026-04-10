@@ -728,7 +728,8 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
 const INV_LABELS = [
   '$1 to $25','$26 to $50','$51 to $75','$76 to $100',
   '$101 to $150','$151 to $200','$201 to $300','$301 to $400',
-  '$401 to $500','$501 to $600','$601 to $700','$701 to $1000+'
+  '$401 to $500','$501 to $600','$601 to $700','$701 to $999',
+  '$1000 to $1999','$2000 to $2999','$3000 to $3999','$4000 to $4999','$5000+'
 ];
 
 // Zone labels
@@ -981,6 +982,9 @@ function setOdd(val) {
 function calculate() {
   const customer  = document.getElementById('customer').value || 'Customer';
   const invIdx    = parseInt(document.getElementById('inv-amt').value);
+  // Rate tables only have 12 rows (0-11). For $1000+ brackets (idx 12-16),
+  // use the highest available rate row (idx 11) for freight calculation.
+  const rateIdx   = Math.min(invIdx, 11);
   const zoneIdx   = parseInt(document.getElementById('zone').value);
   const svcKey    = document.getElementById('service').value;
   const osIdx     = parseInt(document.getElementById('oversize').value);
@@ -1009,7 +1013,7 @@ function calculate() {
         }
         // Zone-based surcharge PLUS the ground rate from the rate table
         const rateTable = rates['ground'];
-        const groundRate = (rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx]) || 0;
+        const groundRate = (rateTable && rateTable[rateIdx] && rateTable[rateIdx][zoneIdx]) || 0;
         const zoneSurcharge = osItem.zoneRates[zoneIdx];
         baseCharge = groundRate + zoneSurcharge;
         rows.push(['Base Freight (' + INV_LABELS[invIdx] + ' · ' + ZONE_LABELS[zoneIdx] + ')', fmt(groundRate), '']);
@@ -1017,7 +1021,7 @@ function calculate() {
       } else {
         // Flat-charge items: ground rate (invoice + zone) PLUS the flat item charge
         const rateTable = rates['ground'];
-        const groundRate = (rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx]) || 0;
+        const groundRate = (rateTable && rateTable[rateIdx] && rateTable[rateIdx][zoneIdx]) || 0;
         baseCharge = groundRate + osItem.amt;
         rows.push(['Base Freight (' + INV_LABELS[invIdx] + ' · ' + ZONE_LABELS[zoneIdx] + ')', fmt(groundRate), '']);
         rows.push([osItem.label + ' Item Charge', fmt(osItem.amt), 'pos']);
@@ -1025,7 +1029,7 @@ function calculate() {
     } else {
       // Non-ground-only items: use rate table so price reflects zone + service
       const rateTable = rates[svcKey];
-      const rate = rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx];
+      const rate = rateTable && rateTable[rateIdx] && rateTable[rateIdx][zoneIdx];
       if (rate === null || rate === undefined) {
         alert('This shipping method is not available for Zone 10. Please select a different service.');
         return;
@@ -1047,7 +1051,7 @@ function calculate() {
   } else {
     // Look up from rate table
     const rateTable = rates[svcKey];
-    const rate = rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx];
+    const rate = rateTable && rateTable[rateIdx] && rateTable[rateIdx][zoneIdx];
 
     if (rate === null || rate === undefined) {
       alert('This shipping method is not available for Zone 10. Please select a different service.');
@@ -1064,9 +1068,16 @@ function calculate() {
     }
   }
 
-  // Insurance surcharge for invoice $701+
-  const insAmt = (invIdx === 11) ? 35 : 0;
-  if (insAmt > 0) rows.push(['Insurance ($701+ Invoice)', fmt(insAmt), 'pos']);
+  // Insurance surcharge — tiered by invoice amount
+  // idx 0-11: <$1000 → $0 | idx 12: $1000-$1999 → $21
+  // idx 13: $2000-$2999 → $38 | idx 14: $3000-$3999 → $55
+  // idx 15: $4000-$4999 → $73 | idx 16: $5000+ → $87
+  const INS_FEES = [0,0,0,0,0,0,0,0,0,0,0,0,21,38,55,73,87];
+  const insAmt = INS_FEES[invIdx] || 0;
+  if (insAmt > 0) {
+    const insLabel = 'Insurance (' + INV_LABELS[invIdx] + ' Invoice)';
+    rows.push([insLabel, fmt(insAmt), 'pos']);
+  }
 
   // Address surcharge
   const addrAmt = addr[addrType] || 0;
