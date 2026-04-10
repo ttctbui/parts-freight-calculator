@@ -852,7 +852,7 @@ const DEFAULT_OVERSIZE = [
   { label: 'Mirror Assy',                    amt: 55,   groundOnly: true  },
   { label: 'Radiator',                       amt: 300,  groundOnly: true  },
   { label: 'Cylinder Head',                  amt: 450,  groundOnly: true  },
-  { label: 'Windshield',                     amt: 600,  groundOnly: true  },
+  { label: 'Windshield',                     amt: 0,    groundOnly: true,  zoneRates: [950,1000,1050,1100,1150,1200,1250,1300,1350,null] },
   { label: 'Injection Pump',                 amt: 175,  groundOnly: false },
   { label: 'Clutch Kit',                     amt: 250,  groundOnly: false },
   { label: 'Exhaust Pipes',                  amt: 450,  groundOnly: true  },
@@ -875,10 +875,11 @@ const DEFAULT_OVERSIZE = [
   { label: 'Rotor & Caliper x4',             amt: 350,  groundOnly: false },
   { label: 'Wheel',                          amt: 225,  groundOnly: true  },
   { label: 'Engine',                         amt: 1200, groundOnly: true  },
-  { label: 'Transmission',                   amt: 450,  groundOnly: true  },
+  { label: 'Transmission',                   amt: 0,    groundOnly: true,  zoneRates: [550,650,650,650,700,700,700,800,800,800] },
   { label: 'Differential',                   amt: 375,  groundOnly: true  },
   { label: 'DPF Filter',                     amt: 250,  groundOnly: false },
-  { label: 'Turbo',                          amt: 150,  groundOnly: true  }
+  { label: 'Turbo',                          amt: 150,  groundOnly: true  },
+  { label: 'Brake Shoes',                    amt: 40,   groundOnly: false }
 ];
 
 // Special packing (your Control sheet)
@@ -990,7 +991,7 @@ function calculate() {
   const spItem    = special[spIdx];
 
   let baseCharge, rows = [], notes = [];
-  let isOversizeItem = osItem && osItem.amt > 0;
+  let isOversizeItem = osItem && (osItem.amt > 0 || osItem.zoneRates);
 
   if (isOversizeItem) {
     // Enforce ground-only restriction
@@ -999,9 +1000,28 @@ function calculate() {
       return;
     }
     if (osItem.groundOnly) {
-      // Ground-only items: use flat charge regardless of zone
-      baseCharge = osItem.amt;
-      rows.push(['Oversize/Heavy Item — ' + osItem.label, fmt(baseCharge), '']);
+      // Ground-only items: use flat charge (or zone-based rate if defined)
+      if (osItem.zoneRates) {
+        // Check if zone is unavailable for this item
+        if (osItem.zoneRates[zoneIdx] === null) {
+          alert(osItem.label + ' cannot be shipped to ' + ZONE_LABELS[zoneIdx] + '. Please select a different zone.');
+          return;
+        }
+        // Zone-based surcharge PLUS the ground rate from the rate table
+        const rateTable = rates['ground'];
+        const groundRate = (rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx]) || 0;
+        const zoneSurcharge = osItem.zoneRates[zoneIdx];
+        baseCharge = groundRate + zoneSurcharge;
+        rows.push(['Base Freight (' + INV_LABELS[invIdx] + ' · ' + ZONE_LABELS[zoneIdx] + ')', fmt(groundRate), '']);
+        rows.push([osItem.label + ' Zone Surcharge', fmt(zoneSurcharge), 'pos']);
+      } else {
+        // Flat-charge items: ground rate (invoice + zone) PLUS the flat item charge
+        const rateTable = rates['ground'];
+        const groundRate = (rateTable && rateTable[invIdx] && rateTable[invIdx][zoneIdx]) || 0;
+        baseCharge = groundRate + osItem.amt;
+        rows.push(['Base Freight (' + INV_LABELS[invIdx] + ' · ' + ZONE_LABELS[zoneIdx] + ')', fmt(groundRate), '']);
+        rows.push([osItem.label + ' Item Charge', fmt(osItem.amt), 'pos']);
+      }
     } else {
       // Non-ground-only items: use rate table so price reflects zone + service
       const rateTable = rates[svcKey];
@@ -1044,6 +1064,10 @@ function calculate() {
     }
   }
 
+  // Insurance surcharge for invoice $701+
+  const insAmt = (invIdx === 11) ? 35 : 0;
+  if (insAmt > 0) rows.push(['Insurance ($701+ Invoice)', fmt(insAmt), 'pos']);
+
   // Address surcharge
   const addrAmt = addr[addrType] || 0;
   if (addrAmt > 0) rows.push([addrType + ' Address Fee', fmt(addrAmt), 'pos']);
@@ -1052,7 +1076,7 @@ function calculate() {
   const spAmt = spItem ? spItem.amt : 0;
   if (spAmt !== 0) rows.push([spItem.label, (spAmt < 0 ? '-' : '') + fmt(Math.abs(spAmt)), spAmt < 0 ? 'neg' : 'pos']);
 
-  const subtotal = baseCharge + addrAmt + spAmt;
+  const subtotal = baseCharge + addrAmt + spAmt + insAmt;
   const markupAmt = subtotal * ((markup.pct || 0) / 100);
   const oddAmt = oddDim ? (subtotal + markupAmt) * ((oddMarkup.pct || 40) / 100) : 0;
   const total = subtotal + markupAmt + oddAmt;
