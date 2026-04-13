@@ -894,7 +894,7 @@ const DEFAULT_ADDR   = { Business: 0, Residential: 6 };
 const DEFAULT_MARKUP = { pct: 40 };
 const DEFAULT_ODD_MARKUP = { pct: 40 };
 const DEFAULT_VER    = { label: '2025 FedEx Rate Card', date: 'April 2025' };
-const ADMIN_PASSWORD = '3^b3p&3AghE2qZ'; // Change before deploying!
+const ADMIN_PASSWORD = 'Parts@13443'; // Change before deploying!
 
 // =====================================================================
 //  STATE
@@ -932,26 +932,47 @@ function populateCalcSelects() {
   const zn = document.getElementById('zone');
   zn.innerHTML = ZONE_LABELS.map((l,i) => `<option value="${i}">${l}</option>`).join('');
 
-  // Services
+  // Services — rebuilt whenever zone or oversize changes
+  function rebuildServices() {
+    const zoneIdx = parseInt(document.getElementById('zone').value);
+    const isHawaii = (zoneIdx === 9); // Zone 10 = index 9
+    const osIdx = parseInt(document.getElementById('oversize').value);
+    const osItem = oversize[osIdx];
+    const svcEl = document.getElementById('service');
+    const prev = svcEl.value;
+
+    if (osItem && osItem.groundOnly) {
+      // groundOnly item — Ground only, but block entirely if Hawaii
+      if (isHawaii) {
+        svcEl.innerHTML = '<option value="">— Ground N/A for Zone 10 —</option>';
+        svcEl.value = '';
+        svcEl.disabled = true;
+        svcEl.title = 'FedEx Ground does not service Hawaii (Zone 10). This item cannot be shipped to Zone 10.';
+      } else {
+        svcEl.innerHTML = `<option value="ground">FedEx Ground</option>`;
+        svcEl.value = 'ground';
+        svcEl.disabled = true;
+        svcEl.title = 'This oversize item can only ship via FedEx Ground';
+      }
+    } else {
+      // Normal item — exclude Ground for Hawaii
+      const svcs = isHawaii
+        ? SVC_DEFS.filter(s => s.key !== 'ground')
+        : SVC_DEFS;
+      svcEl.innerHTML = svcs.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
+      svcEl.disabled = false;
+      svcEl.title = isHawaii ? 'FedEx Ground is not available for Zone 10 (Hawaii)' : '';
+      // Restore previous selection if still available, else pick first
+      if (svcs.find(s => s.key === prev)) svcEl.value = prev;
+      else svcEl.value = svcs[0].key;
+    }
+  }
+
   const svc = document.getElementById('service');
   svc.innerHTML = SVC_DEFS.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
 
-  // When oversize changes, restrict service options if groundOnly
-  document.getElementById('oversize').addEventListener('change', function() {
-    const idx = parseInt(this.value);
-    const item = oversize[idx];
-    const svcEl = document.getElementById('service');
-    if (item && item.groundOnly) {
-      svcEl.innerHTML = `<option value="ground">FedEx Ground</option>`;
-      svcEl.value = 'ground';
-      svcEl.disabled = true;
-      svcEl.title = 'This oversize item can only ship via FedEx Ground';
-    } else {
-      svcEl.innerHTML = SVC_DEFS.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
-      svcEl.disabled = false;
-      svcEl.title = '';
-    }
-  });
+  document.getElementById('oversize').addEventListener('change', rebuildServices);
+  document.getElementById('zone').addEventListener('change', rebuildServices);
 
   // Oversize
   const os = document.getElementById('oversize');
@@ -987,6 +1008,12 @@ function calculate() {
   const rateIdx   = Math.min(invIdx, 11);
   const zoneIdx   = parseInt(document.getElementById('zone').value);
   const svcKey    = document.getElementById('service').value;
+
+  // Block FedEx Ground to Zone 10 (Hawaii)
+  if (svcKey === 'ground' && zoneIdx === 9) {
+    alert('FedEx Ground does not service Hawaii (Zone 10). Please select an air service.');
+    return;
+  }
   const osIdx     = parseInt(document.getElementById('oversize').value);
   const spIdx     = parseInt(document.getElementById('special').value);
 
