@@ -1163,7 +1163,6 @@ function buildAdminUI() {
 
   // Oversize table
   renderOsTable();
-  renderSpTable();
 
   // Settings
   document.getElementById('s-markup').value     = markup.pct;
@@ -1201,8 +1200,6 @@ function renderOsTable() {
     </tr>`
   ).join('');
 }
-
-function renderSpTable() {
 
 function flashMsg(id) {
   const el = document.getElementById(id);
