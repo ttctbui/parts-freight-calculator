@@ -487,10 +487,6 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
         <select id="oversize"></select>
       </div>
       <div class="field">
-        <label>Special Packing</label>
-        <select id="special"></select>
-      </div>
-      <div class="field">
         <label>Odd Dimension</label>
         <div class="tog" id="odd-tog">
           <button class="tog-btn on" onclick="setOdd(false)">No</button>
@@ -558,7 +554,6 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
     <div class="adm-tabs">
       <button class="adm-tab on" onclick="showTab('rates')">Rate Tables</button>
       <button class="adm-tab" onclick="showTab('oversize')">Oversize Items</button>
-      <button class="adm-tab" onclick="showTab('special')">Special Packing</button>
       <button class="adm-tab" onclick="showTab('settings')">Settings</button>
       <button class="adm-tab" onclick="showTab('import')" style="color:var(--blue);font-weight:700;">&#8593; Import Rates</button>
     </div>
@@ -602,22 +597,6 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
       </div>
     </div>
 
-    <!-- SPECIAL -->
-    <div class="adm-sec" id="adm-special">
-      <div class="card">
-        <div class="card-lbl">Special Packing / Handling Adjustments</div>
-        <p style="font-size:12.5px;color:var(--text2);margin-bottom:1rem;">Flat dollar amounts added (positive) or deducted (negative) from the total.</p>
-        <table class="rt" id="sp-tbl">
-          <thead><tr><th>Description</th><th>Amount ($)</th><th></th></tr></thead>
-          <tbody id="sp-tbody"></tbody>
-        </table>
-        <button class="btn-add" onclick="addSpRow()">+ Add Item</button>
-        <div class="save-bar">
-          <div class="save-msg" id="sp-msg">&#10003; Saved.</div>
-          <button class="btn-save" onclick="saveSpecial()">Save</button>
-        </div>
-      </div>
-    </div>
 
     <!-- SETTINGS -->
     <div class="adm-sec" id="adm-settings">
@@ -864,7 +843,7 @@ const DEFAULT_OVERSIZE = [
   { label: 'Drum & Wheel Cyl x2',            amt: 180,  groundOnly: true  },
   { label: 'Drum & Wheel Cyl x3',            amt: 180,  groundOnly: true  },
   { label: 'Drum & Wheel Cyl x4',            amt: 220,  groundOnly: true  },
-  { label: 'Engine',                         amt: 1200, groundOnly: true  },
+  { label: 'Engine',                         amt: 0,    groundOnly: true,  zoneRates: [550,650,650,750,750,950,950,1350,1050,null] },
   { label: 'Exhaust Pipes',                  amt: 450,  groundOnly: true  },
   { label: 'Fuel Tank',                      amt: 350,  groundOnly: true  },
   { label: 'Hood',                           amt: 1000, groundOnly: true  },
@@ -886,12 +865,6 @@ const DEFAULT_OVERSIZE = [
   { label: 'Windshield',                     amt: 0,    groundOnly: true,  zoneRates: [600,650,700,750,800,850,900,950,1000,null] }
 ];
 
-// Special packing (your Control sheet)
-const DEFAULT_SPECIAL = [
-  { label: 'None',                       amt: 0 },
-  { label: 'Specialized Pallet',         amt: 150 },
-  { label: 'Other',                      amt: 30 }
-];
 
 const DEFAULT_ADDR   = { Business: 0, Residential: 6 };
 const DEFAULT_MARKUP = { pct: 40 };
@@ -908,7 +881,6 @@ function sv(k, v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch 
 let rates    = ld('pfc_rates',    DEFAULT_RATES);
 let fuel     = ld('pfc_fuel',     DEFAULT_FUEL);
 let oversize = ld('pfc_oversize', DEFAULT_OVERSIZE);
-let special  = ld('pfc_special',  DEFAULT_SPECIAL);
 let addr     = ld('pfc_addr',     DEFAULT_ADDR);
 let markup      = ld('pfc_markup',     DEFAULT_MARKUP);
 let oddMarkup   = ld('pfc_odd_markup', DEFAULT_ODD_MARKUP);
@@ -981,9 +953,6 @@ function populateCalcSelects() {
   const os = document.getElementById('oversize');
   os.innerHTML = oversize.map((o,i) => `<option value="${i}">${o.label}</option>`).join('');
 
-  // Special
-  const sp = document.getElementById('special');
-  sp.innerHTML = special.map((s,i) => `<option value="${i}">${s.label}</option>`).join('');
 }
 
 // =====================================================================
@@ -1018,11 +987,9 @@ function calculate() {
     return;
   }
   const osIdx     = parseInt(document.getElementById('oversize').value);
-  const spIdx     = parseInt(document.getElementById('special').value);
 
   const svcDef    = SVC_DEFS.find(s => s.key === svcKey);
   const osItem    = oversize[osIdx];
-  const spItem    = special[spIdx];
 
   let baseCharge, rows = [], notes = [];
   let isOversizeItem = osItem && (osItem.amt > 0 || osItem.zoneRates);
@@ -1113,11 +1080,7 @@ function calculate() {
   const addrAmt = addr[addrType] || 0;
   if (addrAmt > 0) rows.push([addrType + ' Address Fee', fmt(addrAmt), 'pos']);
 
-  // Special packing
-  const spAmt = spItem ? spItem.amt : 0;
-  if (spAmt !== 0) rows.push([spItem.label, (spAmt < 0 ? '-' : '') + fmt(Math.abs(spAmt)), spAmt < 0 ? 'neg' : 'pos']);
-
-  const subtotal = baseCharge + addrAmt + spAmt + insAmt;
+  const subtotal = baseCharge + addrAmt + insAmt;
   const markupAmt = subtotal * ((markup.pct || 0) / 100);
   const oddAmt = oddDim ? (subtotal + markupAmt) * ((oddMarkup.pct || 40) / 100) : 0;
   const total = subtotal + markupAmt + oddAmt;
@@ -1153,7 +1116,7 @@ function showView(v) {
 }
 
 function showTab(t) {
-  const tabs = ['rates','oversize','special','settings','import'];
+  const tabs = ['rates','oversize','settings','import'];
   document.querySelectorAll('.adm-tab').forEach((b,i) => b.classList.toggle('on', tabs[i] === t));
   document.querySelectorAll('.adm-sec').forEach(s => s.classList.remove('on'));
   document.getElementById('adm-' + t).classList.add('on');
@@ -1240,86 +1203,6 @@ function renderOsTable() {
 }
 
 function renderSpTable() {
-  document.getElementById('sp-tbody').innerHTML = special.map((s,i) =>
-    `<tr>
-      <td><input type="text" value="${s.label}" data-si="${i}" data-f="label" style="width:220px;height:28px;font-size:12.5px;padding:0 6px;border:1px solid var(--border);border-radius:4px;"></td>
-      <td><input type="number" value="${s.amt}" step="0.01" data-si="${i}" data-f="amt" style="width:80px;"></td>
-      <td>${i===0?'':'<button class="btn-del" onclick="delSp('+i+')">&#215;</button>'}</td>
-    </tr>`
-  ).join('');
-}
-
-// =====================================================================
-//  SAVE FUNCTIONS
-// =====================================================================
-function saveRates() {
-  const svcKey = document.getElementById('edit-svc').value;
-  document.querySelectorAll('.ri').forEach(inp => {
-    rates[svcKey][inp.dataset.ri][inp.dataset.ci] = parseFloat(inp.value) || 0;
-  });
-  sv('pfc_rates', rates);
-  flashMsg('rates-msg');
-}
-
-function saveFuel() {
-  document.querySelectorAll('#fuel-tbody input').forEach(inp => {
-    const i = inp.dataset.fi; const f = inp.dataset.field;
-    if (f === 'amt') fuel[i].amt = parseFloat(inp.value) || 0;
-    else fuel[i].range = inp.value;
-  });
-  sv('pfc_fuel', fuel);
-  flashMsg('fuel-msg');
-}
-
-function saveOversize() {
-  document.querySelectorAll('#os-tbody input').forEach(inp => {
-    const i = inp.dataset.oi; const f = inp.dataset.f;
-    if (f === 'amt') oversize[i].amt = parseFloat(inp.value) || 0;
-    else oversize[i].label = inp.value;
-  });
-  sv('pfc_oversize', oversize);
-  populateCalcSelects();
-  flashMsg('os-msg');
-}
-
-function saveSpecial() {
-  document.querySelectorAll('#sp-tbody input').forEach(inp => {
-    const i = inp.dataset.si; const f = inp.dataset.f;
-    if (f === 'amt') special[i].amt = parseFloat(inp.value) || 0;
-    else special[i].label = inp.value;
-  });
-  sv('pfc_special', special);
-  populateCalcSelects();
-  flashMsg('sp-msg');
-}
-
-function saveMarkup() {
-  markup.pct    = parseFloat(document.getElementById('s-markup').value) || 0;
-  oddMarkup.pct = parseFloat(document.getElementById('s-odd-markup').value) || 0;
-  sv('pfc_markup', markup);
-  sv('pfc_odd_markup', oddMarkup);
-  flashMsg('markup-msg');
-}
-
-function saveAddr() {
-  addr.Business    = parseFloat(document.getElementById('s-business').value) || 0;
-  addr.Residential = parseFloat(document.getElementById('s-residential').value) || 0;
-  sv('pfc_addr', addr);
-  flashMsg('addr-msg');
-}
-
-function saveVersion() {
-  ver.label = document.getElementById('s-verlabel').value;
-  ver.date  = document.getElementById('s-verdate').value;
-  sv('pfc_ver', ver);
-  document.getElementById('ver-tag').textContent = 'Rate version: ' + ver.label + ' · ' + ver.date;
-  flashMsg('ver-msg');
-}
-
-function addOsRow() { oversize.push({ label: 'New Item', amt: 0 }); renderOsTable(); }
-function addSpRow() { special.push({ label: 'New Item', amt: 0 });  renderSpTable(); }
-function delOs(i)   { oversize.splice(i, 1); renderOsTable(); }
-function delSp(i)   { special.splice(i, 1);  renderSpTable(); }
 
 function flashMsg(id) {
   const el = document.getElementById(id);
