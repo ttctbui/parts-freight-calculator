@@ -867,8 +867,8 @@ const DEFAULT_OVERSIZE = [
 
 
 const DEFAULT_ADDR   = { Business: 0, Residential: 6 };
-const DEFAULT_MARKUP = { pct: 40 };
-const DEFAULT_ODD_MARKUP = { pct: 40 };
+const DEFAULT_MARKUP = { pct: 25 };
+const DEFAULT_ODD_MARKUP = { pct: 25 };
 const DEFAULT_VER    = { label: '2025 FedEx Rate Card', date: 'April 2025' };
 const ADMIN_PASSWORD = '3^b3p&3AghE2qZ'; // Change before deploying!
 
@@ -894,6 +894,9 @@ let oddDim = false;
 // =====================================================================
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('qdate').value = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  // Migrate: if markup was stored at old 40% default, reset to new 25%
+  if (markup.pct === 40)    { markup.pct = 25;    sv('pfc_markup', markup); }
+  if (oddMarkup.pct === 40) { oddMarkup.pct = 25; sv('pfc_odd_markup', oddMarkup); }
   populateCalcSelects();
   document.getElementById('ver-tag').textContent = 'Rate version: ' + ver.label + ' · ' + ver.date;
 });
@@ -1081,8 +1084,11 @@ function calculate() {
   if (addrAmt > 0) rows.push([addrType + ' Address Fee', fmt(addrAmt), 'pos']);
 
   const subtotal = baseCharge + addrAmt + insAmt;
-  const markupAmt = subtotal * ((markup.pct || 0) / 100);
-  const oddAmt = oddDim ? (subtotal + markupAmt) * ((oddMarkup.pct || 40) / 100) : 0;
+  // Engine and Transmission: no markup. Everything else: standard markup.
+  const noMarkupItems = ['Engine', 'Transmission'];
+  const skipMarkup = osItem && noMarkupItems.some(n => osItem.label === n || osItem.label.startsWith(n + ' '));
+  const markupAmt = skipMarkup ? 0 : subtotal * ((markup.pct || 0) / 100);
+  const oddAmt = oddDim ? (subtotal + markupAmt) * ((oddMarkup.pct || 25) / 100) : 0;
   const total = subtotal + markupAmt + oddAmt;
   if (oddDim) rows.push(['Odd Dimension Surcharge', fmt(oddAmt), 'pos']);
 
