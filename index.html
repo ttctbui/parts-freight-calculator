@@ -1225,11 +1225,15 @@ function saveOversize() {
     if (f === 'amt') oversize[i][f] = parseFloat(inp.value) || 0;
     else oversize[i][f] = inp.value;
   });
+  // Keep "None" (index 0) pinned first, sort the rest alphabetically
+  const none = oversize[0];
+  const rest = oversize.slice(1).sort((a, b) => a.label.localeCompare(b.label));
+  oversize = [none, ...rest];
   sv('pfc_oversize', oversize);
+  renderOsTable();
   const sel = document.getElementById('oversize');
-  const prev = sel.value;
   sel.innerHTML = oversize.map((o,i) => `<option value="${i}">${o.label}</option>`).join('');
-  sel.value = prev < oversize.length ? prev : 0;
+  sel.value = 0;
   flashMsg('os-msg');
 }
 
