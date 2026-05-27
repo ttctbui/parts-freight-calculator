@@ -1207,6 +1207,65 @@ function renderOsTable() {
   ).join('');
 }
 
+function addOsRow() {
+  oversize.push({ label: 'New Item', amt: 0, groundOnly: false });
+  renderOsTable();
+}
+
+function delOs(i) {
+  if (i === 0) return;
+  oversize.splice(i, 1);
+  renderOsTable();
+}
+
+function saveOversize() {
+  document.querySelectorAll('#os-tbody input').forEach(inp => {
+    const i = parseInt(inp.dataset.oi);
+    const f = inp.dataset.f;
+    if (f === 'amt') oversize[i][f] = parseFloat(inp.value) || 0;
+    else oversize[i][f] = inp.value;
+  });
+  sv('pfc_oversize', oversize);
+  const sel = document.getElementById('oversize');
+  const prev = sel.value;
+  sel.innerHTML = oversize.map((o,i) => `<option value="${i}">${o.label}</option>`).join('');
+  sel.value = prev < oversize.length ? prev : 0;
+  flashMsg('os-msg');
+}
+
+function saveRates() {
+  document.querySelectorAll('#rate-tbody input').forEach(inp => {
+    const svc  = inp.dataset.svc;
+    const ri   = parseInt(inp.dataset.ri);
+    const zi   = parseInt(inp.dataset.zi);
+    if (!rates[svc]) rates[svc] = [];
+    if (!rates[svc][ri]) rates[svc][ri] = [];
+    rates[svc][ri][zi] = parseFloat(inp.value) || 0;
+  });
+  sv('pfc_rates', rates);
+  flashMsg('rate-msg');
+}
+
+function saveMarkup() {
+  markup.pct    = parseFloat(document.getElementById('s-markup').value)    || 0;
+  oddMarkup.pct = parseFloat(document.getElementById('s-odd-markup').value) || 0;
+  sv('pfc_markup',     markup);
+  sv('pfc_odd_markup', oddMarkup);
+  flashMsg('markup-msg');
+}
+
+function saveAddr() {
+  addr.Residential = parseFloat(document.getElementById('s-addr-res').value) || 0;
+  sv('pfc_addr', addr);
+  flashMsg('addr-msg');
+}
+
+function saveVersion() {
+  ver.date = document.getElementById('s-ver-date').value;
+  sv('pfc_ver', ver);
+  flashMsg('ver-msg');
+}
+
 function flashMsg(id) {
   const el = document.getElementById(id);
   el.style.display = 'block';
