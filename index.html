@@ -436,7 +436,7 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
     <button class="htab on" id="tab-calc" onclick="showView('calc')">Quote Calculator</button>
     <button class="htab" onclick="showZoneMap()">Zone Map</button>
     <button class="htab" id="tab-admin" onclick="showView('admin')">Admin</button>
-    <a class="htab" href="https://portal.tomstruck.com/#/help/freight" target="_blank" rel="noopener" title="Step-by-step how-to guide">? Help</a>
+    <a class="htab" href="https://portal.tomstruck.com/#/help/freight" target="_blank" rel="noopener" title="Step-by-step how-to guide (opens in a side window)" onclick="var w=Math.min(560,screen.availWidth),x=window.open(this.href,'ttc-help','popup,width='+w+',height='+screen.availHeight+',left='+((screen.availLeft||0)+screen.availWidth-w)+',top='+(screen.availTop||0));if(x){x.focus();return false}">? Help</a>
   </div>
 </header>
 
