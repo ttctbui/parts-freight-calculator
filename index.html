@@ -312,7 +312,7 @@ body { font-family: 'Trebuchet MS', Arial, sans-serif; background: var(--bg); co
 .logo-div { width: 1px; height: 28px; background: rgba(255,255,255,0.3); }
 .logo-txt { font-size: 13px; color: rgba(255,255,255,0.75); letter-spacing: 0.4px; font-family: 'Arial', sans-serif; }
 .hdr-tabs { display: flex; gap: 6px; }
-.htab { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.85); padding: 5px 13px; border-radius: var(--r); font-size: 12.5px; cursor: pointer; transition: all .15s; font-family: inherit; }
+.htab { text-decoration: none; display: inline-flex; align-items: center; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.85); padding: 5px 13px; border-radius: var(--r); font-size: 12.5px; cursor: pointer; transition: all .15s; font-family: inherit; }
 .htab.on, .htab:hover { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 700; }
 
 /* LAYOUT */
@@ -436,6 +436,7 @@ select:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgb
     <button class="htab on" id="tab-calc" onclick="showView('calc')">Quote Calculator</button>
     <button class="htab" onclick="showZoneMap()">Zone Map</button>
     <button class="htab" id="tab-admin" onclick="showView('admin')">Admin</button>
+    <a class="htab" href="https://portal.tomstruck.com/#/help/freight" target="_blank" rel="noopener" title="Step-by-step how-to guide (opens in a side window)" onclick="var w=Math.min(560,screen.availWidth),x=window.open(this.href,'ttc-help','popup,width='+w+',height='+screen.availHeight+',left='+((screen.availLeft||0)+screen.availWidth-w)+',top='+(screen.availTop||0));if(x){x.focus();return false}">? Help</a>
   </div>
 </header>
 
